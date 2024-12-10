@@ -235,6 +235,11 @@ export class ClientBase extends EventEmitter {
 
     async fetchHomeTimeline(count: number): Promise<Tweet[]> {
         elizaLogger.debug("fetching home timeline");
+        if (!this.profile?.id) {
+            elizaLogger.error("Profile or profile ID not available");
+            return [];
+        }
+
         const homeTimeline = await this.twitterClient.getUserTweets(
             this.profile.id,
             count
