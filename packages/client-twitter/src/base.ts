@@ -5,8 +5,8 @@ import {
     Memory,
     State,
     UUID,
-    getEmbeddingZeroVector,
     elizaLogger,
+    getEmbeddingZeroVector,
     stringToUuid,
 } from "@ai16z/eliza";
 import {

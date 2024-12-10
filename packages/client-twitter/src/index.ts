@@ -27,12 +27,9 @@ export const TwitterClientInterface: Client = {
         const manager = new TwitterManager(runtime);
 
         await manager.client.init();
-
         await manager.post.start();
-
         await manager.interaction.start();
-
-        await manager.search.onReady();
+        await manager.search.start();
 
         return manager;
     },

@@ -69,6 +69,15 @@ export async function buildConversationThread(
             const userId = stringToUuid(currentTweet.userId);
 
             try {
+                // First ensure user exists
+                await client.runtime.ensureUserExists(
+                    userId,
+                    currentTweet.username || "",
+                    currentTweet.name || "",
+                    "twitter"
+                );
+
+                // Then create connection
                 await client.runtime.ensureConnection(
                     userId,
                     roomId,

@@ -55,7 +55,7 @@ export class TwitterSearchClient {
         this.runtime = runtime;
     }
 
-    async onReady() {
+    async start() {
         const searchEnabled = !!this.runtime.getSetting(
             "TWITTER_SEARCH_ENABLED"
         );
