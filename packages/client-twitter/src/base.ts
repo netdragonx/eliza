@@ -331,6 +331,13 @@ export class ClientBase extends EventEmitter {
     private async populateTimeline() {
         elizaLogger.debug("populating timeline...");
 
+        if (!(await this.ensureProfile())) {
+            elizaLogger.error(
+                "Cannot populate timeline - failed to ensure profile"
+            );
+            return;
+        }
+
         const cachedTimeline = await this.getCachedTimeline();
 
         // Check if the cache file exists
@@ -634,6 +641,13 @@ export class ClientBase extends EventEmitter {
     }
 
     async cacheTimeline(timeline: Tweet[]) {
+        if (!this.profile?.username) {
+            elizaLogger.error(
+                "Cannot cache timeline - profile or username not available"
+            );
+            return;
+        }
+
         await this.runtime.cacheManager.set(
             `twitter/${this.profile.username}/timeline`,
             timeline,
@@ -708,5 +722,23 @@ export class ClientBase extends EventEmitter {
 
             return undefined;
         }
+    }
+
+    private async ensureProfile(): Promise<boolean> {
+        if (!this.profile) {
+            const username = this.runtime.getSetting("TWITTER_USERNAME");
+            if (!username) {
+                elizaLogger.error("Twitter username not configured");
+                return false;
+            }
+            try {
+                this.profile = await this.fetchProfile(username);
+                return !!this.profile;
+            } catch (error) {
+                elizaLogger.error("Failed to initialize profile:", error);
+                return false;
+            }
+        }
+        return true;
     }
 }
