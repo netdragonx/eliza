@@ -46,10 +46,7 @@ export class TwitterSearchClient extends ClientBase {
     private respondedTweets: Set<string> = new Set();
 
     constructor(runtime: IAgentRuntime) {
-        // Initialize the client and pass an optional callback to be called when the client is ready
-        super({
-            ...runtime,
-        });
+        super(runtime);
     }
 
     async onReady() {
