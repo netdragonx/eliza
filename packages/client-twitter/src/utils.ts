@@ -1,9 +1,13 @@
+import {
+    Content,
+    elizaLogger,
+    getEmbeddingZeroVector,
+    Memory,
+    stringToUuid,
+    UUID,
+} from "@ai16z/eliza";
 import { Tweet } from "agent-twitter-client";
-import { getEmbeddingZeroVector } from "@ai16z/eliza";
-import { Content, Memory, UUID } from "@ai16z/eliza";
-import { stringToUuid } from "@ai16z/eliza";
 import { ClientBase } from "./base";
-import { elizaLogger } from "@ai16z/eliza";
 
 const MAX_TWEET_LENGTH = 280; // Updated to Twitter's current character limit
 
@@ -38,13 +42,13 @@ export async function buildConversationThread(
 
     async function processThread(currentTweet: Tweet, depth: number = 0) {
         elizaLogger.debug("Processing tweet:", {
-            id: currentTweet.id,
-            inReplyToStatusId: currentTweet.inReplyToStatusId,
+            id: currentTweet?.id,
+            inReplyToStatusId: currentTweet?.inReplyToStatusId,
             depth: depth,
         });
 
-        if (!currentTweet) {
-            elizaLogger.debug("No current tweet found for thread building");
+        if (!currentTweet || !currentTweet.id) {
+            elizaLogger.debug("No valid tweet found for thread building");
             return;
         }
 
@@ -64,39 +68,46 @@ export async function buildConversationThread(
             );
             const userId = stringToUuid(currentTweet.userId);
 
-            await client.runtime.ensureConnection(
-                userId,
-                roomId,
-                currentTweet.username,
-                currentTweet.name,
-                "twitter"
-            );
+            try {
+                await client.runtime.ensureConnection(
+                    userId,
+                    roomId,
+                    currentTweet.username || "",
+                    currentTweet.name || "",
+                    "twitter"
+                );
 
-            await client.runtime.messageManager.createMemory({
-                id: stringToUuid(
-                    currentTweet.id + "-" + client.runtime.agentId
-                ),
-                agentId: client.runtime.agentId,
-                content: {
-                    text: currentTweet.text,
-                    source: "twitter",
-                    url: currentTweet.permanentUrl,
-                    inReplyTo: currentTweet.inReplyToStatusId
-                        ? stringToUuid(
-                              currentTweet.inReplyToStatusId +
-                                  "-" +
-                                  client.runtime.agentId
-                          )
-                        : undefined,
-                },
-                createdAt: currentTweet.timestamp * 1000,
-                roomId,
-                userId:
-                    currentTweet.userId === client.profile.id
-                        ? client.runtime.agentId
-                        : stringToUuid(currentTweet.userId),
-                embedding: getEmbeddingZeroVector(),
-            });
+                await client.runtime.messageManager.createMemory({
+                    id: stringToUuid(
+                        currentTweet.id + "-" + client.runtime.agentId
+                    ),
+                    agentId: client.runtime.agentId,
+                    content: {
+                        text: currentTweet.text || "",
+                        source: "twitter",
+                        url: currentTweet.permanentUrl,
+                        inReplyTo: currentTweet.inReplyToStatusId
+                            ? stringToUuid(
+                                  currentTweet.inReplyToStatusId +
+                                      "-" +
+                                      client.runtime.agentId
+                              )
+                            : undefined,
+                    },
+                    createdAt: currentTweet.timestamp * 1000,
+                    roomId,
+                    userId:
+                        currentTweet.userId === client.profile?.id
+                            ? client.runtime.agentId
+                            : stringToUuid(currentTweet.userId),
+                    embedding: getEmbeddingZeroVector(),
+                });
+            } catch (error) {
+                elizaLogger.error("Error creating memory for tweet:", {
+                    tweetId: currentTweet.id,
+                    error,
+                });
+            }
         }
 
         if (visited.has(currentTweet.id)) {

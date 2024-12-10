@@ -1,17 +1,20 @@
-import { SearchMode } from "agent-twitter-client";
-import { composeContext } from "@ai16z/eliza";
-import { generateMessageResponse, generateText } from "@ai16z/eliza";
-import { messageCompletionFooter } from "@ai16z/eliza";
 import {
+    composeContext,
     Content,
+    elizaLogger,
+    generateMessageResponse,
+    generateText,
     HandlerCallback,
     IAgentRuntime,
     IImageDescriptionService,
+    Memory,
+    messageCompletionFooter,
     ModelClass,
     ServiceType,
     State,
+    stringToUuid,
 } from "@ai16z/eliza";
-import { stringToUuid } from "@ai16z/eliza";
+import { SearchMode } from "agent-twitter-client";
 import { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
 
@@ -42,45 +45,58 @@ Your response should not contain any questions. Brief, concise statements only. 
 
 ` + messageCompletionFooter;
 
-export class TwitterSearchClient extends ClientBase {
+export class TwitterSearchClient {
     private respondedTweets: Set<string> = new Set();
+    private client: ClientBase;
+    private runtime: IAgentRuntime;
 
-    constructor(runtime: IAgentRuntime) {
-        super(runtime);
+    constructor(client: ClientBase, runtime: IAgentRuntime) {
+        this.client = client;
+        this.runtime = runtime;
     }
 
     async onReady() {
+        const searchEnabled = !!this.runtime.getSetting(
+            "TWITTER_SEARCH_ENABLED"
+        );
+
+        if (!searchEnabled) {
+            elizaLogger.log("Twitter search disabled by configuration");
+            return;
+        }
+
         this.engageWithSearchTermsLoop();
     }
 
     private engageWithSearchTermsLoop() {
-        this.engageWithSearchTerms();
-        setTimeout(
-            () => this.engageWithSearchTermsLoop(),
-            (Math.floor(Math.random() * (120 - 60 + 1)) + 60) * 60 * 1000
+        this.engageWithSearchTerms().catch((error) => {
+            elizaLogger.error("Error in search terms loop:", error);
+        });
+
+        const baseInterval = parseInt(
+            this.runtime.getSetting("TWITTER_SEARCH_INTERVAL") || "3600"
         );
+
+        const variation = Math.floor(Math.random() * 240) - 120;
+        const searchInterval = (baseInterval + variation) * 1000;
+
+        setTimeout(() => this.engageWithSearchTermsLoop(), searchInterval);
     }
 
     private async engageWithSearchTerms() {
-        console.log("Engaging with search terms");
         try {
             const searchTerm = [...this.runtime.character.topics][
                 Math.floor(Math.random() * this.runtime.character.topics.length)
             ];
 
-            console.log("Fetching search tweets");
-            // TODO: we wait 5 seconds here to avoid getting rate limited on startup, but we should queue
-            await new Promise((resolve) => setTimeout(resolve, 5000));
-            const recentTweets = await this.fetchSearchTweets(
+            const recentTweets = await this.client.fetchSearchTweets(
                 searchTerm,
                 20,
                 SearchMode.Top
             );
-            console.log("Search tweets fetched");
 
-            const homeTimeline = await this.fetchHomeTimeline(50);
-
-            await this.cacheTimeline(homeTimeline);
+            const homeTimeline = await this.client.fetchHomeTimeline(50);
+            await this.client.cacheTimeline(homeTimeline);
 
             const formattedHomeTimeline =
                 `# ${this.runtime.character.name}'s Home Timeline\n\n` +
@@ -90,7 +106,6 @@ export class TwitterSearchClient extends ClientBase {
                     })
                     .join("\n");
 
-            // randomly slice .tweets down to 20
             const slicedTweets = recentTweets.tweets
                 .sort(() => Math.random() - 0.5)
                 .slice(0, 20);
@@ -108,7 +123,6 @@ export class TwitterSearchClient extends ClientBase {
 
   ${[...slicedTweets, ...homeTimeline]
       .filter((tweet) => {
-          // ignore tweets where any of the thread tweets contain a tweet by the bot
           const thread = tweet.thread;
           const botTweet = thread.find(
               (t) => t.username === this.runtime.getSetting("TWITTER_USERNAME")
@@ -175,8 +189,11 @@ export class TwitterSearchClient extends ClientBase {
                 "twitter"
             );
 
-            // crawl additional conversation tweets, if there are any
-            await buildConversationThread(selectedTweet, this);
+            await buildConversationThread(selectedTweet, this.client);
+
+            const originalTweet = await this.client.requestQueue.add(() =>
+                this.client.twitterClient.getTweet(selectedTweet.id)
+            );
 
             const message = {
                 id: stringToUuid(selectedTweet.id + "-" + this.runtime.agentId),
@@ -194,7 +211,6 @@ export class TwitterSearchClient extends ClientBase {
                 },
                 userId: userIdUUID,
                 roomId,
-                // Timestamps are in seconds, but we need them in milliseconds
                 createdAt: selectedTweet.timestamp * 1000,
             };
 
@@ -202,7 +218,6 @@ export class TwitterSearchClient extends ClientBase {
                 return { text: "", action: "IGNORE" };
             }
 
-            // Fetch replies and retweets
             const replies = selectedTweet.thread;
             const replyContext = replies
                 .filter(
@@ -215,13 +230,9 @@ export class TwitterSearchClient extends ClientBase {
 
             let tweetBackground = "";
             if (selectedTweet.isRetweet) {
-                const originalTweet = await this.requestQueue.add(() =>
-                    this.twitterClient.getTweet(selectedTweet.id)
-                );
                 tweetBackground = `Retweeting @${originalTweet.username}: ${originalTweet.text}`;
             }
 
-            // Generate image descriptions using GPT-4 vision API
             const imageDescriptions = [];
             for (const photo of selectedTweet.photos) {
                 const description = await this.runtime
@@ -234,7 +245,7 @@ export class TwitterSearchClient extends ClientBase {
             }
 
             let state = await this.runtime.composeState(message, {
-                twitterClient: this.twitterClient,
+                twitterClient: this.client.twitterClient,
                 twitterUserName: this.runtime.getSetting("TWITTER_USERNAME"),
                 timeline: formattedHomeTimeline,
                 tweetContext: `${tweetBackground}
@@ -277,7 +288,7 @@ export class TwitterSearchClient extends ClientBase {
             try {
                 const callback: HandlerCallback = async (response: Content) => {
                     const memories = await sendTweet(
-                        this,
+                        this.client,
                         response,
                         message.roomId,
                         this.runtime.getSetting("TWITTER_USERNAME"),
@@ -321,7 +332,11 @@ export class TwitterSearchClient extends ClientBase {
                 console.error(`Error sending response post: ${error}`);
             }
         } catch (error) {
-            console.error("Error engaging with search terms:", error);
+            elizaLogger.error("Error engaging with search terms:", error);
         }
+    }
+
+    private async saveRequestMessage(message: Memory, state: State) {
+        return this.client.saveRequestMessage(message, state);
     }
 }

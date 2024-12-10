@@ -1,9 +1,9 @@
+import { Client, elizaLogger, IAgentRuntime } from "@ai16z/eliza";
+import { ClientBase } from "./base.ts";
+import { validateTwitterConfig } from "./environment.ts";
+import { TwitterInteractionClient } from "./interactions.ts";
 import { TwitterPostClient } from "./post.ts";
 import { TwitterSearchClient } from "./search.ts";
-import { TwitterInteractionClient } from "./interactions.ts";
-import { IAgentRuntime, Client, elizaLogger } from "@ai16z/eliza";
-import { validateTwitterConfig } from "./environment.ts";
-import { ClientBase } from "./base.ts";
 
 class TwitterManager {
     client: ClientBase;
@@ -13,10 +13,7 @@ class TwitterManager {
     constructor(runtime: IAgentRuntime) {
         this.client = new ClientBase(runtime);
         this.post = new TwitterPostClient(this.client, runtime);
-        this.search = new TwitterSearchClient(runtime); // don't start the search client by default
-        // this searches topics from character file, but kind of violates consent of random users
-        // burns your rate limit and can get your account banned
-        // use at your own risk
+        this.search = new TwitterSearchClient(this.client, runtime);
         this.interaction = new TwitterInteractionClient(this.client, runtime);
     }
 }
