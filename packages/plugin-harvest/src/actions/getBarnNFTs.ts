@@ -1,4 +1,4 @@
-import { Action } from "@ai16z/eliza";
+import { Action, HandlerCallback } from "@ai16z/eliza";
 import { HarvestActionHandler } from "../types";
 
 interface BarnNFT {
@@ -29,15 +29,24 @@ export class GetBarnNFTsAction {
     }
 }
 
-const handler: HarvestActionHandler = async (_runtime, message, _state) => {
+const handler: HarvestActionHandler = async (
+    _runtime,
+    message,
+    _state,
+    _options,
+    callback: HandlerCallback
+) => {
     const chainId = message.content.chainId as string;
     const address = message.content.address as string;
 
     if (!chainId || !address) {
-        return {
-            text: "Please provide both chain ID and address to check The Barn",
-            action: "CONTINUE",
-        };
+        callback(
+            {
+                text: "Please provide both chain ID and address to check The Barn",
+            },
+            []
+        );
+        return;
     }
 
     try {
@@ -45,10 +54,13 @@ const handler: HarvestActionHandler = async (_runtime, message, _state) => {
         const nfts = await action.getBarnNFTs(chainId, address);
 
         if (!nfts.length) {
-            return {
-                text: `*scanning barn* No NFTs found in barn ${address} on chain ${chainId}.`,
-                action: "CONTINUE",
-            };
+            callback(
+                {
+                    text: `*scanning barn* No NFTs found in barn ${address} on chain ${chainId}.`,
+                },
+                []
+            );
+            return;
         }
 
         const nftsByCollection = nfts.reduce(
@@ -63,16 +75,20 @@ const handler: HarvestActionHandler = async (_runtime, message, _state) => {
             .map(([collection, count]) => `${count}x ${collection}`)
             .join(", ");
 
-        return {
-            text: `*scanning barn* Found NFTs in The Barn: ${collectionSummary}`,
-            data: nfts,
-            action: "CONTINUE",
-        };
+        callback(
+            {
+                text: `*scanning barn* Found NFTs in The Barn: ${collectionSummary}`,
+                data: nfts,
+            },
+            []
+        );
     } catch (error) {
-        return {
-            text: error.message,
-            action: "CONTINUE",
-        };
+        callback(
+            {
+                text: error.message,
+            },
+            []
+        );
     }
 };
 

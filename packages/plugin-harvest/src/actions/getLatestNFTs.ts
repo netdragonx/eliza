@@ -1,5 +1,5 @@
-import { Action } from "@ai16z/eliza";
-import { HarvestActionHandler, HarvestNFT } from "../types";
+import { Action, elizaLogger, HandlerCallback } from "@ai16z/eliza";
+import { HarvestActionHandler } from "../types";
 
 interface NFTMetadata {
     name: string | null;
@@ -27,22 +27,41 @@ export class GetLatestNFTsAction {
     }
 }
 
-const handler: HarvestActionHandler = async (_runtime, _message, _state) => {
-    const action = new GetLatestNFTsAction();
-    const nfts = await action.getLatestNFTs();
+const handler: HarvestActionHandler = async (
+    _runtime,
+    _message,
+    _state,
+    _options,
+    callback: HandlerCallback
+) => {
+    try {
+        elizaLogger.log("Fetching latest NFTs...");
+        const action = new GetLatestNFTsAction();
+        const nfts = await action.getLatestNFTs();
 
-    const nftList = nfts
-        .map(
-            (nft) =>
-                `${nft.name} (${nft.collection_name} on chain ${nft.chain_id})`
-        )
-        .join(", ");
+        const nftList = nfts
+            .map(
+                (nft) =>
+                    `${nft.name} (${nft.collection_name} on chain ${nft.chain_id})`
+            )
+            .join(", ");
 
-    return {
-        text: `*beep boop* scanning The Barn... found ${nfts.length} fresh harvests! Latest pickups: ${nftList} *whirr*`,
-        data: nfts,
-        action: "CONTINUE",
-    };
+        callback(
+            {
+                text: `*beep boop* scanning The Barn... found ${nfts.length} fresh harvests! Latest pickups: ${nftList} *whirr*`,
+                data: nfts,
+            },
+            []
+        );
+    } catch (error) {
+        elizaLogger.error("Error fetching latest NFTs:", error);
+        callback(
+            {
+                text: "Error fetching latest NFTs. Please try again later.",
+            },
+            []
+        );
+    }
 };
 
 export const getLatestNFTsAction: Action = {

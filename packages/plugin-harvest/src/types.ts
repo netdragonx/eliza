@@ -1,4 +1,4 @@
-import { IAgentRuntime, Memory, State } from "@ai16z/eliza";
+import { HandlerCallback, IAgentRuntime, Memory, State } from "@ai16z/eliza";
 
 export interface HarvestStats {
     totalNFTs: number;
@@ -18,14 +18,10 @@ export interface HarvestUser {
     nfts?: HarvestNFT[];
 }
 
-export interface HarvestActionHandler {
-    (
-        runtime: IAgentRuntime,
-        message: Memory,
-        state: State
-    ): Promise<{
-        text: string;
-        action: string;
-        data?: any;
-    }>;
-}
+export type HarvestActionHandler = (
+    runtime: IAgentRuntime,
+    message: Memory,
+    state: State,
+    options: any,
+    callback: HandlerCallback
+) => Promise<void>;

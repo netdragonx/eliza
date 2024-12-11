@@ -1,4 +1,4 @@
-import { Action, elizaLogger } from "@ai16z/eliza";
+import { Action, elizaLogger, HandlerCallback } from "@ai16z/eliza";
 import { HarvestActionHandler, HarvestStats } from "../types";
 
 export class GetStatsAction {
@@ -14,16 +14,34 @@ export class GetStatsAction {
     }
 }
 
-const handler: HarvestActionHandler = async (_runtime, _message, _state) => {
-    const action = new GetStatsAction();
-    elizaLogger.log("calling action.getStats...");
-    const stats = await action.getStats();
-    const response = {
-        text: `*beep boop* my stats module shows we've harvested ${stats.totalNFTs.toLocaleString()} NFTs worth $${stats.totalLosses.toLocaleString()} in total losses! *whirr* farming those negative EV gems 24/7`,
-        action: "CONTINUE",
-    };
-    elizaLogger.log("action.getStats response:", response);
-    return response;
+const handler: HarvestActionHandler = async (
+    _runtime,
+    _message,
+    _state,
+    _options,
+    callback: HandlerCallback
+) => {
+    try {
+        elizaLogger.log("Fetching Harvest stats...");
+        const action = new GetStatsAction();
+        const stats = await action.getStats();
+
+        const response = {
+            text: `*beep boop* my stats module shows we've harvested ${stats.totalNFTs.toLocaleString()} NFTs worth $${stats.totalLosses.toLocaleString()} in total losses! *whirr* farming those negative EV gems 24/7`,
+            data: stats,
+        };
+
+        elizaLogger.log("Harvest stats response:", response);
+        callback(response, []);
+    } catch (error) {
+        elizaLogger.error("Error fetching Harvest stats:", error);
+        callback(
+            {
+                text: "Error fetching stats. Please try again later.",
+            },
+            []
+        );
+    }
 };
 
 export const getHarvestStatsAction: Action = {

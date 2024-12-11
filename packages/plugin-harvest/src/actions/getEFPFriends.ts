@@ -1,4 +1,4 @@
-import { Action } from "@ai16z/eliza";
+import { Action, HandlerCallback } from "@ai16z/eliza";
 import { HarvestActionHandler } from "../types";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
@@ -45,13 +45,22 @@ export class GetEFPFriendsAction {
     }
 }
 
-const handler: HarvestActionHandler = async (_runtime, message, _state) => {
+const handler: HarvestActionHandler = async (
+    _runtime,
+    message,
+    _state,
+    _options,
+    callback: HandlerCallback
+) => {
     const nameOrAddress = message.content.address as string;
     if (!nameOrAddress) {
-        return {
-            text: "Please provide an address or ENS name to look up",
-            action: "CONTINUE",
-        };
+        callback(
+            {
+                text: "Please provide an address or ENS name to look up",
+            },
+            []
+        );
+        return;
     }
 
     try {
@@ -59,26 +68,33 @@ const handler: HarvestActionHandler = async (_runtime, message, _state) => {
         const { data } = await action.getEFPFriends(nameOrAddress);
 
         if (!data.harvestUsers?.length) {
-            return {
-                text: `*scanning social graph* None of your friends have harvested yet. Add more friends at @efp!`,
-                action: "CONTINUE",
-            };
+            callback(
+                {
+                    text: `*scanning social graph* None of your friends have harvested yet. Add more friends at @efp!`,
+                },
+                []
+            );
+            return;
         }
 
         const friendList = data.harvestUsers
             .map((friend) => friend.name || friend.address)
             .join(", ");
 
-        return {
-            text: `*scanning social graph* Found ${data.harvestUsers.length} Harvest friends out of ${data.followingCount} total @efp follows! Friends: ${friendList}`,
-            data: data.harvestUsers,
-            action: "CONTINUE",
-        };
+        callback(
+            {
+                text: `*scanning social graph* Found ${data.harvestUsers.length} Harvest friends out of ${data.followingCount} total @efp follows! Friends: ${friendList}`,
+                data: data.harvestUsers,
+            },
+            []
+        );
     } catch (error) {
-        return {
-            text: error.message,
-            action: "CONTINUE",
-        };
+        callback(
+            {
+                text: error.message,
+            },
+            []
+        );
     }
 };
 

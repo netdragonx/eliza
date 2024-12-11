@@ -1,4 +1,4 @@
-import { Action } from "@ai16z/eliza";
+import { Action, HandlerCallback } from "@ai16z/eliza";
 import { HarvestActionHandler } from "../types";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
@@ -63,15 +63,24 @@ export class GetUserNFTsAction {
     }
 }
 
-const handler: HarvestActionHandler = async (_runtime, message, _state) => {
+const handler: HarvestActionHandler = async (
+    _runtime,
+    message,
+    _state,
+    _options,
+    callback: HandlerCallback
+) => {
     const nameOrAddress = message.content.address as string;
     const chainId = message.content.chainId as string;
 
     if (!nameOrAddress || !chainId) {
-        return {
-            text: "Please provide both address/ENS and chain ID to look up NFTs",
-            action: "CONTINUE",
-        };
+        callback(
+            {
+                text: "Please provide both address/ENS and chain ID to look up NFTs",
+            },
+            []
+        );
+        return;
     }
 
     try {
@@ -88,16 +97,20 @@ const handler: HarvestActionHandler = async (_runtime, message, _state) => {
             })
             .join(", ");
 
-        return {
-            text: `*scanning wallet* Found some NFTs. Visit the farm to see more! ${nftList}`,
-            data: nfts,
-            action: "CONTINUE",
-        };
+        callback(
+            {
+                text: `*scanning wallet* Found some NFTs. Visit the farm to see more! ${nftList}`,
+                data: nfts,
+            },
+            []
+        );
     } catch (error) {
-        return {
-            text: error.message,
-            action: "CONTINUE",
-        };
+        callback(
+            {
+                text: error.message,
+            },
+            []
+        );
     }
 };
 
