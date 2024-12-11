@@ -392,11 +392,7 @@ export class TwitterInteractionClient {
                 await this.runtime.evaluate(message, state);
                 elizaLogger.debug("Evaluated message");
 
-                await this.runtime.processActions(
-                    message,
-                    responseMessages,
-                    state
-                );
+                await this.runtime.processActions(message, [], state, callback);
                 elizaLogger.debug("Processed actions");
 
                 const responseInfo = `Context:\n\n${context}\n\nSelected Post: ${tweet.id} - ${tweet.username}: ${tweet.text}\nAgent's Output:\n${response.text}`;
