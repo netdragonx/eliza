@@ -1,24 +1,22 @@
+import { SearchMode, Tweet } from "agent-twitter-client";
 import {
     composeContext,
-    Content,
-    elizaLogger,
     generateMessageResponse,
     generateShouldRespond,
-    getEmbeddingZeroVector,
+    messageCompletionFooter,
+    shouldRespondFooter,
+    Content,
     HandlerCallback,
     IAgentRuntime,
     Memory,
-    messageCompletionFooter,
     ModelClass,
-    shouldRespondFooter,
     State,
     stringToUuid,
+    elizaLogger,
+    getEmbeddingZeroVector,
 } from "@ai16z/eliza";
-import { SearchMode, Tweet } from "agent-twitter-client";
 import { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
-import { createPublicClient, http } from "viem";
-import { mainnet } from "viem/chains";
 
 export const twitterMessageHandlerTemplate =
     `
@@ -228,35 +226,6 @@ export class TwitterInteractionClient {
     }) {
         elizaLogger.debug("Starting handleTweet for tweet:", tweet);
 
-        let state = await this.runtime.composeState(message, {
-            twitterClient: this.client.twitterClient,
-            twitterUserName: this.runtime.getSetting("TWITTER_USERNAME"),
-            currentPost: "",
-            formattedConversation: "",
-        });
-
-        // Check for .eth in username
-        let userAddress: string | undefined;
-        if (tweet.name?.toLowerCase().includes(".eth")) {
-            try {
-                const publicClient = createPublicClient({
-                    chain: mainnet,
-                    transport: http(),
-                });
-                userAddress = await publicClient.getEnsAddress({
-                    name: tweet.name,
-                });
-                elizaLogger.debug("Resolved ENS address:", userAddress);
-
-                state = {
-                    ...state,
-                    address: userAddress,
-                };
-            } catch (error) {
-                elizaLogger.error("Error resolving ENS name:", error);
-            }
-        }
-
         if (tweet.userId === this.client.profile.id) {
             elizaLogger.debug("Skipping tweet from bot itself", tweet.id);
             return;
@@ -293,10 +262,9 @@ export class TwitterInteractionClient {
             .join("\n\n");
         elizaLogger.debug("Formatted conversation:", formattedConversation);
 
-        state = await this.runtime.composeState(message, {
+        let state = await this.runtime.composeState(message, {
             twitterClient: this.client.twitterClient,
             twitterUserName: this.runtime.getSetting("TWITTER_USERNAME"),
-            address: userAddress,
             currentPost,
             formattedConversation,
         });
