@@ -1,9 +1,9 @@
 import { Plugin } from "@ai16z/eliza";
 import { getHarvestStatsAction } from "./actions/getStats";
-import { getLatestNFTsAction } from "./actions/getLatestNFTs";
-import { getBarnNFTsAction } from "./actions/getBarnNFTs";
-import { getEFPFriendsAction } from "./actions/getEFPFriends";
-import { getUserNFTsAction } from "./actions/getUser";
+// import { getLatestNFTsAction } from "./actions/getLatestNFTs";
+// import { getBarnNFTsAction } from "./actions/getBarnNFTs";
+// import { getEFPFriendsAction } from "./actions/getEFPFriends";
+// import { getUserNFTsAction } from "./actions/getUser";
 
 export * as actions from "./actions";
 
@@ -24,10 +24,10 @@ export const harvestPlugin: Plugin = {
     description: "Harvest.art API integration for NFT and user data",
     actions: [
         getHarvestStatsAction,
-        getLatestNFTsAction,
-        getBarnNFTsAction,
-        getEFPFriendsAction,
-        getUserNFTsAction,
+        // getLatestNFTsAction,
+        // getBarnNFTsAction,
+        // getEFPFriendsAction,
+        // getUserNFTsAction,
     ],
     providers: [],
     evaluators: [],
