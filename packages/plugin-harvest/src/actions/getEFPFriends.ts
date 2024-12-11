@@ -3,6 +3,18 @@ import { HarvestActionHandler } from "../types";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
 
+interface EFPFriend {
+    name: string;
+    address: string;
+}
+
+interface EFPResponse {
+    data: {
+        followingCount: number;
+        harvestUsers: EFPFriend[];
+    };
+}
+
 export class GetEFPFriendsAction {
     private publicClient = createPublicClient({
         chain: mainnet,
@@ -24,7 +36,7 @@ export class GetEFPFriendsAction {
         return nameOrAddress;
     }
 
-    async getEFPFriends(nameOrAddress: string): Promise<string[]> {
+    async getEFPFriends(nameOrAddress: string): Promise<EFPResponse> {
         const address = await this.resolveAddress(nameOrAddress);
         const response = await fetch(
             `https://harvest.art/api/user/${address}/efp`
@@ -44,10 +56,22 @@ const handler: HarvestActionHandler = async (_runtime, message, _state) => {
 
     try {
         const action = new GetEFPFriendsAction();
-        const friends = await action.getEFPFriends(nameOrAddress);
+        const { data } = await action.getEFPFriends(nameOrAddress);
+
+        if (!data.harvestUsers?.length) {
+            return {
+                text: `*scanning social graph* None of your friends have harvested yet. Add more friends at @efp!`,
+                action: "CONTINUE",
+            };
+        }
+
+        const friendList = data.harvestUsers
+            .map((friend) => friend.name || friend.address)
+            .join(", ");
+
         return {
-            text: `Found ${friends.length} Harvest friends for ${nameOrAddress}`,
-            data: { address: nameOrAddress, efpFriends: friends },
+            text: `*scanning social graph* Found ${data.harvestUsers.length} Harvest friends out of ${data.followingCount} total @efp follows! Friends: ${friendList}`,
+            data: data.harvestUsers,
             action: "CONTINUE",
         };
     } catch (error) {

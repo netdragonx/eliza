@@ -6,7 +6,7 @@ export class GetStatsAction {
         const response = await fetch(
             "https://harvest.art/api/cached-dune-queries"
         );
-        const data = await response.json();
+        const { data } = await response.json();
         return {
             totalNFTs: data.totalNFTs,
             totalLosses: data.totalLosses,
@@ -18,7 +18,7 @@ const handler: HarvestActionHandler = async (_runtime, _message, _state) => {
     const action = new GetStatsAction();
     const stats = await action.getStats();
     return {
-        text: `Harvest has bought ${stats.totalNFTs} NFTs with a total loss value of $${stats.totalLosses.toLocaleString()}`,
+        text: `*beep boop* my stats module shows we've harvested ${stats.totalNFTs.toLocaleString()} NFTs worth $${stats.totalLosses.toLocaleString()} in total losses! *whirr* farming those negative EV gems 24/7`,
         action: "CONTINUE",
     };
 };

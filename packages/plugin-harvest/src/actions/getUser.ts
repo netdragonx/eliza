@@ -1,7 +1,22 @@
 import { Action } from "@ai16z/eliza";
-import { HarvestActionHandler, HarvestUser } from "../types";
+import { HarvestActionHandler } from "../types";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
+
+interface NFTMetadata {
+    contract: {
+        name: string;
+        address: string;
+        openSeaMetadata?: {
+            twitterUsername?: string;
+        };
+    };
+    tokenId: string;
+    collection: {
+        name: string;
+    };
+    balance: string;
+}
 
 export class GetUserNFTsAction {
     private publicClient = createPublicClient({
@@ -27,12 +42,24 @@ export class GetUserNFTsAction {
     async getUserNFTs(
         nameOrAddress: string,
         chainId: string
-    ): Promise<HarvestUser> {
+    ): Promise<NFTMetadata[]> {
         const address = await this.resolveAddress(nameOrAddress);
         const response = await fetch(
             `https://harvest.art/api/user/${address}/${chainId}/nfts`
         );
-        return response.json();
+        const { data } = await response.json();
+        return data.ownedNfts.map((nft: any) => ({
+            contract: {
+                name: nft.contract.name,
+                address: nft.contract.address,
+                openSeaMetadata: nft.contract.openSeaMetadata,
+            },
+            tokenId: nft.tokenId,
+            collection: {
+                name: nft.collection.name,
+            },
+            balance: nft.balance,
+        }));
     }
 }
 
@@ -49,10 +76,21 @@ const handler: HarvestActionHandler = async (_runtime, message, _state) => {
 
     try {
         const action = new GetUserNFTsAction();
-        const user = await action.getUserNFTs(nameOrAddress, chainId);
+        const nfts = await action.getUserNFTs(nameOrAddress, chainId);
+
+        const nftList = nfts
+            .map((nft) => {
+                const twitterHandle = nft.contract.openSeaMetadata
+                    ?.twitterUsername
+                    ? ` @${nft.contract.openSeaMetadata.twitterUsername}`
+                    : "";
+                return `${twitterHandle ? twitterHandle : ""} ${nft.collection.name}`;
+            })
+            .join(", ");
+
         return {
-            text: `Found ${user.nfts?.length || 0} NFTs owned by ${nameOrAddress} on chain ${chainId}`,
-            data: user,
+            text: `*scanning wallet* Found some NFTs. Visit the farm to see more! ${nftList}`,
+            data: nfts,
             action: "CONTINUE",
         };
     } catch (error) {

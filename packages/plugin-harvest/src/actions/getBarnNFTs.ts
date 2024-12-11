@@ -1,12 +1,31 @@
 import { Action } from "@ai16z/eliza";
-import { HarvestActionHandler, HarvestNFT } from "../types";
+import { HarvestActionHandler } from "../types";
+
+interface BarnNFT {
+    id: number;
+    token_id: string;
+    collection_name: string;
+    chain_id: number;
+    address: string;
+    amount: number;
+    owned: boolean;
+}
 
 export class GetBarnNFTsAction {
-    async getBarnNFTs(chainId: string, address: string): Promise<HarvestNFT[]> {
+    async getBarnNFTs(chainId: string, address: string): Promise<BarnNFT[]> {
         const response = await fetch(
             `https://harvest.art/api/cached-nfts/${chainId}/${address}/`
         );
-        return response.json();
+        const { data } = await response.json();
+        return data.map((nft: any) => ({
+            id: nft.id,
+            token_id: nft.token_id,
+            collection_name: nft.collection_name,
+            chain_id: nft.chain_id,
+            address: nft.address,
+            amount: nft.amount,
+            owned: nft.owned,
+        }));
     }
 }
 
@@ -21,13 +40,40 @@ const handler: HarvestActionHandler = async (_runtime, message, _state) => {
         };
     }
 
-    const action = new GetBarnNFTsAction();
-    const nfts = await action.getBarnNFTs(chainId, address);
-    return {
-        text: `Found ${nfts.length} NFTs in barn ${address} on chain ${chainId}`,
-        data: nfts,
-        action: "CONTINUE",
-    };
+    try {
+        const action = new GetBarnNFTsAction();
+        const nfts = await action.getBarnNFTs(chainId, address);
+
+        if (!nfts.length) {
+            return {
+                text: `*scanning barn* No NFTs found in barn ${address} on chain ${chainId}.`,
+                action: "CONTINUE",
+            };
+        }
+
+        const nftsByCollection = nfts.reduce(
+            (acc: { [key: string]: number }, nft) => {
+                acc[nft.collection_name] = (acc[nft.collection_name] || 0) + 1;
+                return acc;
+            },
+            {}
+        );
+
+        const collectionSummary = Object.entries(nftsByCollection)
+            .map(([collection, count]) => `${count}x ${collection}`)
+            .join(", ");
+
+        return {
+            text: `*scanning barn* Found NFTs in The Barn: ${collectionSummary}`,
+            data: nfts,
+            action: "CONTINUE",
+        };
+    } catch (error) {
+        return {
+            text: error.message,
+            action: "CONTINUE",
+        };
+    }
 };
 
 export const getBarnNFTsAction: Action = {
@@ -50,7 +96,7 @@ export const getBarnNFTsAction: Action = {
             {
                 user: "assistant",
                 content: {
-                    text: "Checking The Barn contents",
+                    text: "Scanning The Barn for NFTs",
                     action: "GET_BARN_NFTS",
                 },
             },
