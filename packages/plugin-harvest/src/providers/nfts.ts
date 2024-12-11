@@ -7,6 +7,10 @@ import { Provider } from "@ai16z/eliza";
  *
  * getLatestNFTs() - Fetches the latest NFTs sold to Harvest.art
  * getBarnNFTs(chainId: string, address: string) - Fetches the NFTs in The Barn from a specific address on a specific chain
+ *
+ * returns:
+ * - latestNFTs: latest NFTs sold to Harvest.art
+ * - barnNFTs: NFTs in The Barn from a specific address on a specific chain
  */
 export const harvestNFTsProvider: Provider = {
     async get(runtime, message, state) {
