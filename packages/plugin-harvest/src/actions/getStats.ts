@@ -1,4 +1,4 @@
-import { Action } from "@ai16z/eliza";
+import { Action, elizaLogger } from "@ai16z/eliza";
 import { HarvestActionHandler, HarvestStats } from "../types";
 
 export class GetStatsAction {
@@ -16,11 +16,14 @@ export class GetStatsAction {
 
 const handler: HarvestActionHandler = async (_runtime, _message, _state) => {
     const action = new GetStatsAction();
+    elizaLogger.log("calling action.getStats...");
     const stats = await action.getStats();
-    return {
+    const response = {
         text: `*beep boop* my stats module shows we've harvested ${stats.totalNFTs.toLocaleString()} NFTs worth $${stats.totalLosses.toLocaleString()} in total losses! *whirr* farming those negative EV gems 24/7`,
         action: "CONTINUE",
     };
+    elizaLogger.log("action.getStats response:", response);
+    return response;
 };
 
 export const getHarvestStatsAction: Action = {
