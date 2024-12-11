@@ -85,18 +85,25 @@ export class TwitterSearchClient {
 
     private async engageWithSearchTerms() {
         try {
+            elizaLogger.debug("Starting engageWithSearchTerms");
+
             const searchTerm = [...this.runtime.character.topics][
                 Math.floor(Math.random() * this.runtime.character.topics.length)
             ];
+            elizaLogger.debug("Selected search term", searchTerm);
 
             const recentTweets = await this.client.fetchSearchTweets(
                 searchTerm,
                 20,
                 SearchMode.Top
             );
+            elizaLogger.debug("Fetched recent tweets");
 
             const homeTimeline = await this.client.fetchHomeTimeline(50);
+            elizaLogger.debug("Fetched home timeline");
+
             await this.client.cacheTimeline(homeTimeline);
+            elizaLogger.debug("Cached home timeline");
 
             const formattedHomeTimeline =
                 `# ${this.runtime.character.name}'s Home Timeline\n\n` +
@@ -109,9 +116,10 @@ export class TwitterSearchClient {
             const slicedTweets = recentTweets.tweets
                 .sort(() => Math.random() - 0.5)
                 .slice(0, 20);
+            elizaLogger.debug("Sliced tweets:", slicedTweets.length);
 
             if (slicedTweets.length === 0) {
-                console.log(
+                elizaLogger.debug(
                     "No valid tweets found for the search term",
                     searchTerm
                 );
@@ -146,11 +154,14 @@ export class TwitterSearchClient {
     - Respond to tweets where there is an easy exchange of ideas to have with the user
     - ONLY respond with the ID of the tweet`;
 
+            elizaLogger.debug("Generated prompt for text generation");
+
             const mostInterestingTweetResponse = await generateText({
                 runtime: this.runtime,
                 context: prompt,
                 modelClass: ModelClass.SMALL,
             });
+            elizaLogger.debug("Most interesting tweet response");
 
             const tweetId = mostInterestingTweetResponse.trim();
             const selectedTweet = slicedTweets.find(
@@ -160,17 +171,22 @@ export class TwitterSearchClient {
             );
 
             if (!selectedTweet) {
-                console.log("No matching tweet found for the selected ID");
-                return console.log("Selected tweet ID:", tweetId);
+                elizaLogger.debug(
+                    "No matching tweet found for the selected ID"
+                );
+                return elizaLogger.debug("Selected tweet ID:", tweetId);
             }
 
-            console.log("Selected tweet to reply to:", selectedTweet?.text);
+            elizaLogger.debug(
+                "Selected tweet to reply to:",
+                selectedTweet?.text
+            );
 
             if (
                 selectedTweet.username ===
                 this.runtime.getSetting("TWITTER_USERNAME")
             ) {
-                console.log("Skipping tweet from bot itself");
+                elizaLogger.debug("Skipping tweet from bot itself");
                 return;
             }
 
@@ -189,11 +205,17 @@ export class TwitterSearchClient {
                 "twitter"
             );
 
+            elizaLogger.debug("connection ensured");
+
             await buildConversationThread(selectedTweet, this.client);
+
+            elizaLogger.debug("conversation thread built");
 
             const originalTweet = await this.client.requestQueue.add(() =>
                 this.client.twitterClient.getTweet(selectedTweet.id)
             );
+
+            elizaLogger.debug("original tweet fetched");
 
             const message = {
                 id: stringToUuid(selectedTweet.id + "-" + this.runtime.agentId),
@@ -287,6 +309,10 @@ export class TwitterSearchClient {
             );
             try {
                 const callback: HandlerCallback = async (response: Content) => {
+                    elizaLogger.debug(
+                        "Starting tweet callback with response:",
+                        response
+                    );
                     const memories = await sendTweet(
                         this.client,
                         response,
@@ -294,23 +320,38 @@ export class TwitterSearchClient {
                         this.runtime.getSetting("TWITTER_USERNAME"),
                         tweetId
                     );
+                    elizaLogger.debug(
+                        "Tweet sent, received memories:",
+                        memories
+                    );
                     return memories;
                 };
 
                 const responseMessages = await callback(responseContent);
+                elizaLogger.debug(
+                    "Received response messages:",
+                    responseMessages
+                );
 
                 state = await this.runtime.updateRecentMessageState(state);
+                elizaLogger.debug("Updated recent message state:", state);
 
                 for (const responseMessage of responseMessages) {
                     await this.runtime.messageManager.createMemory(
                         responseMessage,
                         false
                     );
+                    elizaLogger.debug(
+                        "Created memory for response message:",
+                        responseMessage
+                    );
                 }
 
                 state = await this.runtime.updateRecentMessageState(state);
+                elizaLogger.debug("Updated recent message state again:", state);
 
                 await this.runtime.evaluate(message, state);
+                elizaLogger.debug("Evaluated message");
 
                 await this.runtime.processActions(
                     message,
@@ -318,16 +359,25 @@ export class TwitterSearchClient {
                     state,
                     callback
                 );
+                elizaLogger.debug("Processed actions");
 
                 this.respondedTweets.add(selectedTweet.id);
+                elizaLogger.debug(
+                    "Added tweet to responded tweets set:",
+                    selectedTweet.id
+                );
+
                 const responseInfo = `Context:\n\n${context}\n\nSelected Post: ${selectedTweet.id} - ${selectedTweet.username}: ${selectedTweet.text}\nAgent's Output:\n${response.text}`;
+                elizaLogger.debug("Generated response info");
 
                 await this.runtime.cacheManager.set(
                     `twitter/tweet_generation_${selectedTweet.id}.txt`,
                     responseInfo
                 );
+                elizaLogger.debug("Cached response info");
 
                 await wait();
+                elizaLogger.debug("Completed tweet handling process");
             } catch (error) {
                 console.error(`Error sending response post: ${error}`);
             }

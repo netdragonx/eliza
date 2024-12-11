@@ -383,13 +383,21 @@ export class PostgresDatabaseAdapter
                 });
                 return true;
             } catch (error) {
+                // Check if error is a duplicate key violation
+                if ((error as { code?: string }).code === "23505") {
+                    elizaLogger.debug("Account already exists:", {
+                        accountId: account.id,
+                    });
+                    return true;
+                }
+
                 elizaLogger.error("Error creating account:", {
                     error:
                         error instanceof Error ? error.message : String(error),
                     accountId: account.id,
-                    name: account.name, // Only log non-sensitive fields
+                    name: account.name,
                 });
-                return false; // Return false instead of throwing to maintain existing behavior
+                return false;
             }
         }, "createAccount");
     }

@@ -122,20 +122,25 @@ export class TwitterPostClient {
     }
 
     private async generateNewTweet() {
-        elizaLogger.log("Generating new tweet");
+        elizaLogger.debug("Starting generateNewTweet");
 
         try {
             const roomId = stringToUuid(
                 "twitter_generate_room-" + this.client.profile.username
             );
+            elizaLogger.debug("Generated roomId:", roomId);
+
             await this.runtime.ensureUserExists(
                 this.runtime.agentId,
                 this.client.profile.username,
                 this.runtime.character.name,
                 "twitter"
             );
+            elizaLogger.debug("Ensured user exists");
 
             const topics = this.runtime.character.topics.join(", ");
+            elizaLogger.debug("Compiled topics:", topics);
+
             const state = await this.runtime.composeState(
                 {
                     userId: this.runtime.agentId,
@@ -151,6 +156,7 @@ export class TwitterPostClient {
                     maxTweetLength: this.runtime.getSetting("MAX_TWEET_LENGTH"),
                 }
             );
+            elizaLogger.debug("Composed state:", state);
 
             const context = composeContext({
                 state,
@@ -158,25 +164,25 @@ export class TwitterPostClient {
                     this.runtime.character.templates?.twitterPostTemplate ||
                     twitterPostTemplate,
             });
-
-            elizaLogger.debug("generate post prompt:\n" + context);
+            elizaLogger.debug("Composed context for tweet generation");
 
             const newTweetContent = await generateText({
                 runtime: this.runtime,
                 context,
                 modelClass: ModelClass.SMALL,
             });
+            elizaLogger.debug("Generated new tweet content:", newTweetContent);
 
-            // Replace \n with proper line breaks and trim excess spaces
             const formattedTweet = newTweetContent
                 .replaceAll(/\\n/g, "\n")
                 .trim();
+            elizaLogger.debug("Formatted tweet content:", formattedTweet);
 
-            // Use the helper function to truncate to complete sentence
             const content = truncateToCompleteSentence(
                 formattedTweet,
                 Number(this.runtime.getSetting("MAX_TWEET_LENGTH"))
             );
+            elizaLogger.debug("Truncated tweet content:", content);
 
             if (this.runtime.getSetting("TWITTER_DRY_RUN") === "true") {
                 elizaLogger.info(
@@ -193,11 +199,17 @@ export class TwitterPostClient {
                         await this.client.twitterClient.sendTweet(content)
                 );
                 const body = await result.json();
+                elizaLogger.debug("Tweet post result body:", body);
+
                 if (!body?.data?.create_tweet?.tweet_results?.result) {
-                    console.error("Error sending tweet; Bad response:", body);
+                    elizaLogger.error(
+                        "Error sending tweet; Bad response:",
+                        body
+                    );
                     return;
                 }
                 const tweetResult = body.data.create_tweet.tweet_results.result;
+                elizaLogger.debug("Tweet result:", tweetResult);
 
                 const tweet = {
                     id: tweetResult.rest_id,
@@ -220,6 +232,7 @@ export class TwitterPostClient {
                     urls: [],
                     videos: [],
                 } as Tweet;
+                elizaLogger.debug("Constructed tweet object:", tweet);
 
                 await this.runtime.cacheManager.set(
                     `twitter/${this.client.profile.username}/lastPost`,
@@ -228,8 +241,10 @@ export class TwitterPostClient {
                         timestamp: Date.now(),
                     }
                 );
+                elizaLogger.debug("Cached last post information");
 
                 await this.client.cacheTweet(tweet);
+                elizaLogger.debug("Cached tweet");
 
                 elizaLogger.log(`Tweet posted:\n ${tweet.permanentUrl}`);
 
@@ -252,6 +267,7 @@ export class TwitterPostClient {
                     embedding: getEmbeddingZeroVector(),
                     createdAt: tweet.timestamp,
                 });
+                elizaLogger.debug("Created memory for the tweet");
             } catch (error) {
                 elizaLogger.error("Error sending tweet:", error);
             }
