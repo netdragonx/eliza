@@ -1,4 +1,4 @@
-import { Provider } from "@ai16z/eliza";
+import { elizaLogger, Provider } from "@ai16z/eliza";
 
 /**
  * Harvest User Provider
@@ -17,7 +17,12 @@ export const harvestUserProvider: Provider = {
         const chainId = message.content.chainId;
 
         if (!address) {
-            throw new Error("Address required for user data lookup");
+            elizaLogger.error("Address required for user data lookup");
+
+            return {
+                efpFriends: undefined,
+                nfts: undefined,
+            };
         }
 
         const getEFPFriends = async () => {
