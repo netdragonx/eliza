@@ -39,16 +39,17 @@ const handler: HarvestActionHandler = async (
         const action = new GetLatestNFTsAction();
         const nfts = await action.getLatestNFTs();
 
-        const nftList = nfts
-            .map(
-                (nft) =>
-                    `${nft.name} (${nft.collection_name} on chain ${nft.chain_id})`
-            )
+        const uniqueCollections = [
+            ...new Set(nfts.map((nft) => nft.collection_name)),
+        ]
+            .map((collection) => {
+                return `${collection}`;
+            })
             .join(", ");
 
         callback(
             {
-                text: `*beep boop* scanning The Barn... found ${nfts.length} fresh harvests! Latest pickups: ${nftList} *whirr*`,
+                text: `*beep boop* scanning The Barn... found collections: ${uniqueCollections} *whirr*`,
                 data: nfts,
             },
             []

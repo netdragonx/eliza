@@ -27,7 +27,7 @@ const handler: HarvestActionHandler = async (
         const stats = await action.getStats();
 
         const response = {
-            text: `*beep boop* my stats module shows we've harvested ${stats.totalNFTs.toLocaleString()} NFTs worth $${stats.totalLosses.toLocaleString()} in total losses! *whirr* farming those negative EV gems 24/7`,
+            text: `*beep boop* the farm has bought ${stats.totalNFTs.toLocaleString()} NFTs for a rough total of $${stats.totalLosses.toLocaleString()} in tax loss harvesting!`,
             data: stats,
         };
 
