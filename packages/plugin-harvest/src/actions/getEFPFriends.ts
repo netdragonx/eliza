@@ -1,9 +1,9 @@
 import { Action } from "@ai16z/eliza";
-import { HarvestActionHandler, HarvestUser } from "../types";
+import { HarvestActionHandler } from "../types";
 import { createPublicClient, http } from "viem";
 import { mainnet } from "viem/chains";
 
-export class GetUserNFTsAction {
+export class GetEFPFriendsAction {
     private publicClient = createPublicClient({
         chain: mainnet,
         transport: http(),
@@ -24,13 +24,10 @@ export class GetUserNFTsAction {
         return nameOrAddress;
     }
 
-    async getUserNFTs(
-        nameOrAddress: string,
-        chainId: string
-    ): Promise<HarvestUser> {
+    async getEFPFriends(nameOrAddress: string): Promise<string[]> {
         const address = await this.resolveAddress(nameOrAddress);
         const response = await fetch(
-            `https://harvest.art/api/user/${address}/${chainId}/nfts`
+            `https://harvest.art/api/user/${address}/efp`
         );
         return response.json();
     }
@@ -38,21 +35,19 @@ export class GetUserNFTsAction {
 
 const handler: HarvestActionHandler = async (_runtime, message, _state) => {
     const nameOrAddress = message.content.address as string;
-    const chainId = message.content.chainId as string;
-
-    if (!nameOrAddress || !chainId) {
+    if (!nameOrAddress) {
         return {
-            text: "Please provide both address/ENS and chain ID to look up NFTs",
+            text: "Please provide an address or ENS name to look up",
             action: "CONTINUE",
         };
     }
 
     try {
-        const action = new GetUserNFTsAction();
-        const user = await action.getUserNFTs(nameOrAddress, chainId);
+        const action = new GetEFPFriendsAction();
+        const friends = await action.getEFPFriends(nameOrAddress);
         return {
-            text: `Found ${user.nfts?.length || 0} NFTs owned by ${nameOrAddress} on chain ${chainId}`,
-            data: user,
+            text: `Found ${friends.length} Harvest friends for ${nameOrAddress}`,
+            data: { address: nameOrAddress, efpFriends: friends },
             action: "CONTINUE",
         };
     } catch (error) {
@@ -63,31 +58,30 @@ const handler: HarvestActionHandler = async (_runtime, message, _state) => {
     }
 };
 
-export const getUserNFTsAction: Action = {
-    name: "getUserNFTs",
-    description: "Get NFTs owned by a specific address/ENS name on a chain",
+export const getEFPFriendsAction: Action = {
+    name: "getEFPFriends",
+    description: "Get a user's EFP friends who use Harvest",
     handler,
     validate: async (runtime, message) => {
         const address = message.content.address as string;
-        const chainId = message.content.chainId as string;
-        return !!address && !!chainId;
+        return !!address;
     },
     examples: [
         [
             {
                 user: "user",
                 content: {
-                    text: "Show me vitalik.eth's NFTs on Ethereum",
+                    text: "Show me vitalik.eth's Harvest friends",
                 },
             },
             {
                 user: "assistant",
                 content: {
-                    text: "Looking up NFTs",
-                    action: "GET_USER_NFTS",
+                    text: "Looking up EFP friends",
+                    action: "GET_EFP_FRIENDS",
                 },
             },
         ],
     ],
-    similes: ["GET_USER_NFTS", "SHOW_USER_NFTS"],
+    similes: ["GET_EFP_FRIENDS", "SHOW_EFP_FRIENDS"],
 };
