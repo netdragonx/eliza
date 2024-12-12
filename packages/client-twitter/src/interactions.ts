@@ -226,6 +226,18 @@ export class TwitterInteractionClient {
     }) {
         elizaLogger.debug("Starting handleTweet for tweet:", tweet);
 
+        // Check if we've already replied to this tweet
+        const existingReplies = thread.filter(
+            (t) =>
+                t.userId === this.client.profile.id &&
+                t.inReplyToStatusId === tweet.id
+        );
+
+        if (existingReplies.length > 0) {
+            elizaLogger.debug("Already replied to tweet", tweet.id);
+            return;
+        }
+
         if (tweet.userId === this.client.profile.id) {
             elizaLogger.debug("Skipping tweet from bot itself", tweet.id);
             return;
@@ -244,9 +256,9 @@ export class TwitterInteractionClient {
   Text: ${tweet.text}`;
         };
         const currentPost = formatTweet(tweet);
-        elizaLogger.debug("Formatted current post:", currentPost);
+        // elizaLogger.debug("Formatted current post:", currentPost);
 
-        elizaLogger.debug("Thread:", thread);
+        // elizaLogger.debug("Thread:", thread);
         const formattedConversation = thread
             .map(
                 (tweet) => `@${tweet.username} (${new Date(
@@ -260,7 +272,7 @@ export class TwitterInteractionClient {
         ${tweet.text}`
             )
             .join("\n\n");
-        elizaLogger.debug("Formatted conversation:", formattedConversation);
+        // elizaLogger.debug("Formatted conversation:", formattedConversation);
 
         let state = await this.runtime.composeState(message, {
             twitterClient: this.client.twitterClient,
@@ -268,7 +280,7 @@ export class TwitterInteractionClient {
             currentPost,
             formattedConversation,
         });
-        elizaLogger.debug("Composed state:", state);
+        // elizaLogger.debug("Composed state:", state);
 
         const tweetId = stringToUuid(tweet.id + "-" + this.runtime.agentId);
         const tweetExists =
@@ -339,7 +351,7 @@ export class TwitterInteractionClient {
             context,
             modelClass: ModelClass.MEDIUM,
         });
-        elizaLogger.debug("Generated message response:", response);
+        // elizaLogger.debug("Generated message response:", response);
 
         const removeQuotes = (str: string) =>
             str.replace(/^['"](.*)['"]$/, "$1");
@@ -348,7 +360,7 @@ export class TwitterInteractionClient {
 
         response.inReplyTo = stringId;
         response.text = removeQuotes(response.text);
-        elizaLogger.debug("Processed response text:", response.text);
+        // elizaLogger.debug("Processed response text:", response.text);
 
         if (response.text) {
             try {
@@ -364,10 +376,10 @@ export class TwitterInteractionClient {
                 };
 
                 const responseMessages = await callback(response);
-                elizaLogger.debug(
-                    "Sent tweet and received memories:",
-                    responseMessages
-                );
+                // elizaLogger.debug(
+                //     "Sent tweet and received memories:",
+                //     responseMessages
+                // );
 
                 state = (await this.runtime.updateRecentMessageState(
                     state
