@@ -95,6 +95,9 @@ export class TwitterSearchClient {
             ];
             elizaLogger.debug("Selected search term", searchTerm);
 
+            console.log("Fetching search tweets");
+            // TODO: we wait 5 seconds here to avoid getting rate limited on startup, but we should queue
+            await new Promise((resolve) => setTimeout(resolve, 5000));
             const recentTweets = await this.client.fetchSearchTweets(
                 searchTerm,
                 20,
@@ -103,10 +106,8 @@ export class TwitterSearchClient {
             elizaLogger.debug("Fetched recent tweets");
 
             const homeTimeline = await this.client.fetchHomeTimeline(50);
-            elizaLogger.debug("Fetched home timeline");
 
             await this.client.cacheTimeline(homeTimeline);
-            elizaLogger.debug("Cached home timeline");
 
             const formattedHomeTimeline =
                 `# ${this.runtime.character.name}'s Home Timeline\n\n` +
@@ -208,17 +209,8 @@ export class TwitterSearchClient {
                 "twitter"
             );
 
-            elizaLogger.debug("connection ensured");
-
+            // crawl additional conversation tweets, if there are any
             await buildConversationThread(selectedTweet, this.client);
-
-            elizaLogger.debug("conversation thread built");
-
-            const originalTweet = await this.client.requestQueue.add(() =>
-                this.client.twitterClient.getTweet(selectedTweet.id)
-            );
-
-            elizaLogger.debug("original tweet fetched");
 
             const message = {
                 id: stringToUuid(selectedTweet.id + "-" + this.runtime.agentId),
@@ -255,6 +247,9 @@ export class TwitterSearchClient {
 
             let tweetBackground = "";
             if (selectedTweet.isRetweet) {
+                const originalTweet = await this.client.requestQueue.add(() =>
+                    this.client.twitterClient.getTweet(selectedTweet.id)
+                );
                 tweetBackground = `Retweeting @${originalTweet.username}: ${originalTweet.text}`;
             }
 
@@ -282,7 +277,7 @@ export class TwitterSearchClient {
   `,
             });
 
-            await this.saveRequestMessage(message, state as State);
+            await this.client.saveRequestMessage(message, state as State);
 
             const context = composeContext({
                 state,
