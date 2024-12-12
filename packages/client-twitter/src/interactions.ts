@@ -119,7 +119,6 @@ export class TwitterInteractionClient {
                     SearchMode.Latest
                 )
             ).tweets;
-            elizaLogger.debug("Fetched tweet candidates:", tweetCandidates);
 
             // de-duplicate tweetCandidates with a set
             const uniqueTweetCandidates = [...new Set(tweetCandidates)];
@@ -145,7 +144,6 @@ export class TwitterInteractionClient {
                         await this.runtime.messageManager.getMemoryById(
                             tweetId
                         );
-                    elizaLogger.debug("Existing response:", existingResponse);
 
                     if (existingResponse) {
                         elizaLogger.debug(
@@ -179,7 +177,6 @@ export class TwitterInteractionClient {
                         tweet,
                         this.client
                     );
-                    elizaLogger.debug("Built conversation thread:", thread);
 
                     const message = {
                         content: { text: tweet.text },
@@ -263,9 +260,7 @@ export class TwitterInteractionClient {
   Text: ${tweet.text}`;
         };
         const currentPost = formatTweet(tweet);
-        // elizaLogger.debug("Formatted current post:", currentPost);
 
-        // elizaLogger.debug("Thread:", thread);
         const formattedConversation = thread
             .map(
                 (tweet) => `@${tweet.username} (${new Date(
@@ -279,7 +274,6 @@ export class TwitterInteractionClient {
         ${tweet.text}`
             )
             .join("\n\n");
-        // elizaLogger.debug("Formatted conversation:", formattedConversation);
 
         let state = await this.runtime.composeState(message, {
             twitterClient: this.client.twitterClient,
@@ -287,7 +281,6 @@ export class TwitterInteractionClient {
             currentPost,
             formattedConversation,
         });
-        // elizaLogger.debug("Composed state:", state);
 
         const tweetId = stringToUuid(tweet.id + "-" + this.runtime.agentId);
         const tweetExists =
@@ -358,7 +351,6 @@ export class TwitterInteractionClient {
             context,
             modelClass: ModelClass.MEDIUM,
         });
-        // elizaLogger.debug("Generated message response:", response);
 
         const removeQuotes = (str: string) =>
             str.replace(/^['"](.*)['"]$/, "$1");
@@ -367,7 +359,6 @@ export class TwitterInteractionClient {
 
         response.inReplyTo = stringId;
         response.text = removeQuotes(response.text);
-        // elizaLogger.debug("Processed response text:", response.text);
 
         if (response.text) {
             try {
@@ -383,10 +374,6 @@ export class TwitterInteractionClient {
                 };
 
                 const responseMessages = await callback(response);
-                // elizaLogger.debug(
-                //     "Sent tweet and received memories:",
-                //     responseMessages
-                // );
 
                 state = (await this.runtime.updateRecentMessageState(
                     state
