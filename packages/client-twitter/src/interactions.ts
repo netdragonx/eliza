@@ -123,10 +123,6 @@ export class TwitterInteractionClient {
 
             // de-duplicate tweetCandidates with a set
             const uniqueTweetCandidates = [...new Set(tweetCandidates)];
-            elizaLogger.debug(
-                "Unique tweet candidates:",
-                uniqueTweetCandidates
-            );
 
             // Sort tweet candidates by ID in ascending order
             uniqueTweetCandidates
@@ -136,8 +132,6 @@ export class TwitterInteractionClient {
 
             // for each tweet candidate, handle the tweet
             for (const tweet of uniqueTweetCandidates) {
-                elizaLogger.debug("Processing tweet:", tweet);
-
                 if (
                     !this.client.lastCheckedTweetId ||
                     BigInt(tweet.id) > this.client.lastCheckedTweetId
