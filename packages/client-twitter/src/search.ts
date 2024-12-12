@@ -38,10 +38,13 @@ About {{agentName}} (@{{twitterUserName}}):
 # Task: Respond to the following post in the style and perspective of {{agentName}} (aka @{{twitterUserName}}). Write a {{adjective}} response for {{agentName}} to say directly in response to the post. don't generalize.
 {{currentPost}}
 
-IMPORTANT: Your response CANNOT be longer than 20 words.
-Aim for 1-2 short sentences maximum. Be concise and direct.
-
-Your response should not contain any questions. Brief, concise statements only. No emojis. Use \\n\\n (double spaces) between statements.
+IMPORTANT:
+- Your response MUST be a single thought or statement
+- Maximum 20 words
+- No line breaks or double spaces
+- No questions
+- No emojis
+- Be direct and concise
 
 ` + messageCompletionFooter;
 
@@ -261,7 +264,6 @@ export class TwitterSearchClient {
                     .getService<IImageDescriptionService>(
                         ServiceType.IMAGE_DESCRIPTION
                     )
-                    .getInstance()
                     .describeImage(photo.url);
                 imageDescriptions.push(description);
             }

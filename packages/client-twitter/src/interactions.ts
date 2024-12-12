@@ -226,7 +226,20 @@ export class TwitterInteractionClient {
     }) {
         elizaLogger.debug("Starting handleTweet for tweet:", tweet);
 
-        // Check if we've already replied to this tweet
+        // Count total bot replies in thread
+        const MAX_THREAD_REPLIES = 3; // Adjust this number as needed
+        const totalBotReplies = thread.filter(
+            (t) => t.userId === this.client.profile.id
+        ).length;
+
+        if (totalBotReplies >= MAX_THREAD_REPLIES) {
+            elizaLogger.debug(
+                `Already replied ${totalBotReplies} times in thread, skipping`
+            );
+            return;
+        }
+
+        // Check if we've already replied to this specific tweet
         const existingReplies = thread.filter(
             (t) =>
                 t.userId === this.client.profile.id &&
