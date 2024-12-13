@@ -41,13 +41,13 @@ export async function buildConversationThread(
 
     async function processThread(currentTweet: Tweet, depth: number = 0) {
         elizaLogger.debug("Processing tweet:", {
-            id: currentTweet?.id,
-            inReplyToStatusId: currentTweet?.inReplyToStatusId,
+            id: currentTweet.id,
+            inReplyToStatusId: currentTweet.inReplyToStatusId,
             depth: depth,
         });
 
-        if (!currentTweet || !currentTweet.id) {
-            elizaLogger.debug("No valid tweet found for thread building");
+        if (!currentTweet) {
+            elizaLogger.debug("No current tweet found for thread building");
             return;
         }
 
@@ -67,55 +67,39 @@ export async function buildConversationThread(
             );
             const userId = stringToUuid(currentTweet.userId);
 
-            try {
-                // First ensure user exists
-                await client.runtime.ensureUserExists(
-                    userId,
-                    currentTweet.username || "",
-                    currentTweet.name || "",
-                    "twitter"
-                );
+            await client.runtime.ensureConnection(
+                userId,
+                roomId,
+                currentTweet.username,
+                currentTweet.name,
+                "twitter"
+            );
 
-                // Then create connection
-                await client.runtime.ensureConnection(
-                    userId,
-                    roomId,
-                    currentTweet.username || "",
-                    currentTweet.name || "",
-                    "twitter"
-                );
-
-                await client.runtime.messageManager.createMemory({
-                    id: stringToUuid(
-                        currentTweet.id + "-" + client.runtime.agentId
-                    ),
-                    agentId: client.runtime.agentId,
-                    content: {
-                        text: currentTweet.text || "",
-                        source: "twitter",
-                        url: currentTweet.permanentUrl,
-                        inReplyTo: currentTweet.inReplyToStatusId
-                            ? stringToUuid(
-                                  currentTweet.inReplyToStatusId +
-                                      "-" +
-                                      client.runtime.agentId
-                              )
-                            : undefined,
-                    },
-                    createdAt: currentTweet.timestamp * 1000,
-                    roomId,
-                    userId:
-                        currentTweet.userId === client.profile?.id
-                            ? client.runtime.agentId
-                            : stringToUuid(currentTweet.userId),
-                    embedding: getEmbeddingZeroVector(),
-                });
-            } catch (error) {
-                elizaLogger.error("Error creating memory for tweet:", {
-                    tweetId: currentTweet.id,
-                    error,
-                });
-            }
+            await client.runtime.messageManager.createMemory({
+                id: stringToUuid(
+                    currentTweet.id + "-" + client.runtime.agentId
+                ),
+                agentId: client.runtime.agentId,
+                content: {
+                    text: currentTweet.text,
+                    source: "twitter",
+                    url: currentTweet.permanentUrl,
+                    inReplyTo: currentTweet.inReplyToStatusId
+                        ? stringToUuid(
+                              currentTweet.inReplyToStatusId +
+                                  "-" +
+                                  client.runtime.agentId
+                          )
+                        : undefined,
+                },
+                createdAt: currentTweet.timestamp * 1000,
+                roomId,
+                userId:
+                    currentTweet.userId === client.profile.id
+                        ? client.runtime.agentId
+                        : stringToUuid(currentTweet.userId),
+                embedding: getEmbeddingZeroVector(),
+            });
         }
 
         if (visited.has(currentTweet.id)) {

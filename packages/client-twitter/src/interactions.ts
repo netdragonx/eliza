@@ -1,20 +1,20 @@
-import { SearchMode, Tweet } from "agent-twitter-client";
 import {
     composeContext,
+    Content,
+    elizaLogger,
     generateMessageResponse,
     generateShouldRespond,
-    messageCompletionFooter,
-    shouldRespondFooter,
-    Content,
+    getEmbeddingZeroVector,
     HandlerCallback,
     IAgentRuntime,
     Memory,
+    messageCompletionFooter,
     ModelClass,
+    shouldRespondFooter,
     State,
     stringToUuid,
-    elizaLogger,
-    getEmbeddingZeroVector,
 } from "@ai16z/eliza";
+import { SearchMode, Tweet } from "agent-twitter-client";
 import { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
 
@@ -225,7 +225,6 @@ export class TwitterInteractionClient {
             uniqueTweetCandidates
                 .sort((a, b) => a.id.localeCompare(b.id))
                 .filter((tweet) => tweet.userId !== this.client.profile.id);
-            elizaLogger.debug("Filtered and sorted tweet candidates");
 
             // for each tweet candidate, handle the tweet
             for (const tweet of uniqueTweetCandidates) {
@@ -233,34 +232,33 @@ export class TwitterInteractionClient {
                     !this.client.lastCheckedTweetId ||
                     BigInt(tweet.id) > this.client.lastCheckedTweetId
                 ) {
+                    // Generate the tweetId UUID the same way it's done in handleTweet
                     const tweetId = stringToUuid(
                         tweet.id + "-" + this.runtime.agentId
                     );
-                    elizaLogger.debug("Generated tweetId UUID:", tweetId);
 
+                    // Check if we've already processed this tweet
                     const existingResponse =
                         await this.runtime.messageManager.getMemoryById(
                             tweetId
                         );
 
                     if (existingResponse) {
-                        elizaLogger.debug(
+                        elizaLogger.log(
                             `Already responded to tweet ${tweet.id}, skipping`
                         );
                         continue;
                     }
-                    elizaLogger.debug("New Tweet found", tweet.permanentUrl);
+                    elizaLogger.log("New Tweet found", tweet.permanentUrl);
 
                     const roomId = stringToUuid(
                         tweet.conversationId + "-" + this.runtime.agentId
                     );
-                    elizaLogger.debug("Generated roomId:", roomId);
 
                     const userIdUUID =
                         tweet.userId === this.client.profile.id
                             ? this.runtime.agentId
                             : stringToUuid(tweet.userId!);
-                    elizaLogger.debug("Generated userIdUUID:", userIdUUID);
 
                     await this.runtime.ensureConnection(
                         userIdUUID,
@@ -269,7 +267,6 @@ export class TwitterInteractionClient {
                         tweet.name,
                         "twitter"
                     );
-                    elizaLogger.debug("Ensured connection");
 
                     const thread = await buildConversationThread(
                         tweet,
@@ -282,7 +279,6 @@ export class TwitterInteractionClient {
                         userId: userIdUUID,
                         roomId,
                     };
-                    elizaLogger.debug("Constructed message object:", message);
 
                     await this.handleTweet({
                         tweet,
@@ -290,15 +286,15 @@ export class TwitterInteractionClient {
                         thread,
                     });
 
+                    // Update the last checked tweet ID after processing each tweet
                     this.client.lastCheckedTweetId = BigInt(tweet.id);
-                    elizaLogger.debug("Updated last checked tweet ID");
                 }
             }
 
+            // Save the latest checked tweet ID to the file
             await this.client.cacheLatestCheckedTweetId();
-            elizaLogger.debug("Cached latest checked tweet ID");
 
-            elizaLogger.debug("Finished checking Twitter interactions");
+            elizaLogger.log("Finished checking Twitter interactions");
         } catch (error) {
             elizaLogger.error("Error handling Twitter interactions:", error);
         }
@@ -313,45 +309,18 @@ export class TwitterInteractionClient {
         message: Memory;
         thread: Tweet[];
     }) {
-        elizaLogger.debug("Starting handleTweet for tweet:", tweet);
-
-        // Count total bot replies in thread
-        const MAX_THREAD_REPLIES = 3; // Adjust this number as needed
-        const totalBotReplies = thread.filter(
-            (t) => t.userId === this.client.profile.id
-        ).length;
-
-        if (totalBotReplies >= MAX_THREAD_REPLIES) {
-            elizaLogger.debug(
-                `Already replied ${totalBotReplies} times in thread, skipping`
-            );
-            return;
-        }
-
-        // Check if we've already replied to this specific tweet
-        const existingReplies = thread.filter(
-            (t) =>
-                t.userId === this.client.profile.id &&
-                t.inReplyToStatusId === tweet.id
-        );
-
-        if (existingReplies.length > 0) {
-            elizaLogger.debug("Already replied to tweet", tweet.id);
-            return;
-        }
-
         if (tweet.userId === this.client.profile.id) {
-            elizaLogger.debug("Skipping tweet from bot itself", tweet.id);
+            // console.log("skipping tweet from bot itself", tweet.id);
+            // Skip processing if the tweet is from the bot itself
             return;
         }
 
         if (!message.content.text) {
-            elizaLogger.debug("Skipping Tweet with no text", tweet.id);
+            elizaLogger.log("Skipping Tweet with no text", tweet.id);
             return { text: "", action: "IGNORE" };
         }
 
-        elizaLogger.debug("Processing Tweet:", tweet.id);
-
+        elizaLogger.log("Processing Tweet: ", tweet.id);
         const formatTweet = (tweet: Tweet) => {
             return `  ID: ${tweet.id}
   From: ${tweet.name} (@${tweet.username})
@@ -359,6 +328,7 @@ export class TwitterInteractionClient {
         };
         const currentPost = formatTweet(tweet);
 
+        elizaLogger.debug("Thread: ", thread);
         const formattedConversation = thread
             .map(
                 (tweet) => `@${tweet.username} (${new Date(
@@ -373,6 +343,8 @@ export class TwitterInteractionClient {
             )
             .join("\n\n");
 
+        elizaLogger.debug("formattedConversation: ", formattedConversation);
+
         let state = await this.runtime.composeState(message, {
             twitterClient: this.client.twitterClient,
             twitterUserName: this.runtime.getSetting("TWITTER_USERNAME"),
@@ -380,13 +352,13 @@ export class TwitterInteractionClient {
             formattedConversation,
         });
 
+        // check if the tweet exists, save if it doesn't
         const tweetId = stringToUuid(tweet.id + "-" + this.runtime.agentId);
         const tweetExists =
             await this.runtime.messageManager.getMemoryById(tweetId);
-        elizaLogger.debug("Tweet exists:", tweetExists);
 
         if (!tweetExists) {
-            elizaLogger.debug("Tweet does not exist, saving");
+            elizaLogger.log("tweet does not exist, saving");
             const userIdUUID = stringToUuid(tweet.userId as string);
             const roomId = stringToUuid(tweet.conversationId);
 
@@ -408,8 +380,7 @@ export class TwitterInteractionClient {
                 roomId,
                 createdAt: tweet.timestamp * 1000,
             };
-            await this.client.saveRequestMessage(message, state);
-            elizaLogger.debug("Saved request message");
+            this.client.saveRequestMessage(message, state);
         }
 
         // 1. Get the raw target users string from settings
@@ -434,17 +405,16 @@ export class TwitterInteractionClient {
                 this.runtime.character?.templates?.shouldRespondTemplate ||
                 twitterShouldRespondTemplate(validTargetUsersStr),
         });
-        elizaLogger.debug("Composed should respond context");
 
         const shouldRespond = await generateShouldRespond({
             runtime: this.runtime,
             context: shouldRespondContext,
             modelClass: ModelClass.MEDIUM,
         });
-        elizaLogger.debug("Should respond decision:", shouldRespond);
 
+        // Promise<"RESPOND" | "IGNORE" | "STOP" | null> {
         if (shouldRespond !== "RESPOND") {
-            elizaLogger.debug("Not responding to message");
+            elizaLogger.log("Not responding to message");
             return { text: "Response Decision:", action: shouldRespond };
         }
 
@@ -456,7 +426,8 @@ export class TwitterInteractionClient {
                 this.runtime.character?.templates?.messageHandlerTemplate ||
                 twitterMessageHandlerTemplate,
         });
-        elizaLogger.debug("Composed message handler context");
+
+        elizaLogger.debug("Interactions prompt:\n" + context);
 
         const response = await generateMessageResponse({
             runtime: this.runtime,
@@ -470,6 +441,7 @@ export class TwitterInteractionClient {
         const stringId = stringToUuid(tweet.id + "-" + this.runtime.agentId);
 
         response.inReplyTo = stringId;
+
         response.text = removeQuotes(response.text);
 
         if (response.text) {
@@ -490,7 +462,6 @@ export class TwitterInteractionClient {
                 state = (await this.runtime.updateRecentMessageState(
                     state
                 )) as State;
-                elizaLogger.debug("Updated recent message state");
 
                 for (const responseMessage of responseMessages) {
                     if (
@@ -504,11 +475,13 @@ export class TwitterInteractionClient {
                     await this.runtime.messageManager.createMemory(
                         responseMessage
                     );
-                    elizaLogger.debug("Created memory for response message");
                 }
 
-                await this.runtime.processActions(message, [], state, callback);
-                elizaLogger.debug("Processed actions");
+                await this.runtime.processActions(
+                    message,
+                    responseMessages,
+                    state
+                );
 
                 const responseInfo = `Context:\n\n${context}\n\nSelected Post: ${tweet.id} - ${tweet.username}: ${tweet.text}\nAgent's Output:\n${response.text}`;
 
@@ -516,8 +489,6 @@ export class TwitterInteractionClient {
                     `twitter/tweet_generation_${tweet.id}.txt`,
                     responseInfo
                 );
-                elizaLogger.debug("Cached response info");
-
                 await wait();
             } catch (error) {
                 elizaLogger.error(`Error sending response tweet: ${error}`);
@@ -527,7 +498,7 @@ export class TwitterInteractionClient {
 
     async buildConversationThread(
         tweet: Tweet,
-        maxReplies: number = 5
+        maxReplies: number = 10
     ): Promise<Tweet[]> {
         const thread: Tweet[] = [];
         const visited: Set<string> = new Set();

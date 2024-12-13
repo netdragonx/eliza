@@ -198,21 +198,18 @@ export class TwitterPostClient {
     }
 
     private async generateNewTweet() {
-        elizaLogger.debug("Starting generateNewTweet");
+        elizaLogger.log("Generating new tweet");
 
         try {
             const roomId = stringToUuid(
                 "twitter_generate_room-" + this.client.profile.username
             );
-            elizaLogger.debug("Generated roomId:", roomId);
-
             await this.runtime.ensureUserExists(
                 this.runtime.agentId,
                 this.client.profile.username,
                 this.runtime.character.name,
                 "twitter"
             );
-            elizaLogger.debug("Ensured user exists");
 
             const topics = this.runtime.character.topics.join(", ");
 
@@ -230,7 +227,6 @@ export class TwitterPostClient {
                     twitterUserName: this.client.profile.username,
                 }
             );
-            elizaLogger.debug("Composed state:", state);
 
             const context = composeContext({
                 state,
@@ -238,14 +234,14 @@ export class TwitterPostClient {
                     this.runtime.character.templates?.twitterPostTemplate ||
                     twitterPostTemplate,
             });
-            elizaLogger.debug("Composed context for tweet generation");
+
+            elizaLogger.debug("generate post prompt:\n" + context);
 
             const newTweetContent = await generateText({
                 runtime: this.runtime,
                 context,
                 modelClass: ModelClass.SMALL,
             });
-            elizaLogger.debug("Generated new tweet content:", newTweetContent);
 
             // First attempt to clean content
             let cleanedContent = "";
@@ -307,17 +303,11 @@ export class TwitterPostClient {
                         )
                 );
                 const body = await result.json();
-                elizaLogger.debug("Tweet post result body:", body);
-
                 if (!body?.data?.create_tweet?.tweet_results?.result) {
-                    elizaLogger.error(
-                        "Error sending tweet; Bad response:",
-                        body
-                    );
+                    console.error("Error sending tweet; Bad response:", body);
                     return;
                 }
                 const tweetResult = body.data.create_tweet.tweet_results.result;
-                elizaLogger.debug("Tweet result:", tweetResult);
 
                 const tweet = {
                     id: tweetResult.rest_id,
@@ -340,7 +330,6 @@ export class TwitterPostClient {
                     urls: [],
                     videos: [],
                 } as Tweet;
-                elizaLogger.debug("Constructed tweet object:", tweet);
 
                 await this.runtime.cacheManager.set(
                     `twitter/${this.client.profile.username}/lastPost`,
@@ -349,10 +338,8 @@ export class TwitterPostClient {
                         timestamp: Date.now(),
                     }
                 );
-                elizaLogger.debug("Cached last post information");
 
                 await this.client.cacheTweet(tweet);
-                elizaLogger.debug("Cached tweet");
 
                 elizaLogger.log(`Tweet posted:\n ${tweet.permanentUrl}`);
 
@@ -375,7 +362,6 @@ export class TwitterPostClient {
                     embedding: getEmbeddingZeroVector(),
                     createdAt: tweet.timestamp,
                 });
-                elizaLogger.debug("Created memory for the tweet");
             } catch (error) {
                 elizaLogger.error("Error sending tweet:", error);
             }

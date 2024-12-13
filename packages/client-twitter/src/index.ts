@@ -39,9 +39,10 @@ export const TwitterClientInterface: Client = {
         const manager = new TwitterManager(runtime, this.enableSearch);
 
         await manager.client.init();
+
         await manager.post.start();
+
         await manager.interaction.start();
-        await manager.search.start();
 
         //await manager.search.start(); // don't run the search by default
 

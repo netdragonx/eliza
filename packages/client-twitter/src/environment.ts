@@ -11,10 +11,6 @@ export const twitterEnvSchema = z.object({
     TWITTER_PASSWORD: z.string().min(1, "Twitter password is required"),
     TWITTER_EMAIL: z.string().email("Valid Twitter email is required"),
     TWITTER_COOKIES: z.string().optional(),
-    TWITTER_SEARCH_ENABLED: z
-        .string()
-        .transform((val) => val.toLowerCase() === "true")
-        .default("false"),
     TWITTER_SEARCH_INTERVAL: z
         .string()
         .pipe(z.coerce.number().min(60).int())
@@ -48,10 +44,6 @@ export async function validateTwitterConfig(
             TWITTER_COOKIES:
                 runtime.getSetting("TWITTER_COOKIES") ||
                 process.env.TWITTER_COOKIES,
-            TWITTER_SEARCH_ENABLED:
-                runtime.getSetting("TWITTER_SEARCH_ENABLED") ||
-                process.env.TWITTER_SEARCH_ENABLED ||
-                "false",
             TWITTER_SEARCH_INTERVAL:
                 runtime.getSetting("TWITTER_SEARCH_INTERVAL") ||
                 process.env.TWITTER_SEARCH_INTERVAL ||
