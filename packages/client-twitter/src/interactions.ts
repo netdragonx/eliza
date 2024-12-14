@@ -428,7 +428,7 @@ export class TwitterInteractionClient {
                 twitterMessageHandlerTemplate,
         });
 
-        elizaLogger.debug("Interactions prompt:\n" + context);
+        // elizaLogger.debug("Interactions prompt:\n" + context);
 
         const response = await generateMessageResponse({
             runtime: this.runtime,
@@ -452,15 +452,19 @@ If content fails any check, return FALSE.
 `,
         });
 
+        elizaLogger.debug("Security context:\n" + securityContext);
+
         const securityCheck = await generateTrueOrFalse({
             runtime: this.runtime,
             context: securityContext,
             modelClass: ModelClass.SMALL,
         });
 
+        elizaLogger.debug("Security check:", securityCheck);
+
         if (!securityCheck) {
             elizaLogger.error("Response failed security check", response.text);
-            return { text: "", action: "IGNORE" };
+            return { text: "Failed security check", action: "IGNORE" };
         }
 
         const removeQuotes = (str: string) =>
