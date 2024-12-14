@@ -436,9 +436,7 @@ export class TwitterInteractionClient {
             modelClass: ModelClass.MEDIUM,
         });
 
-        const securityContext = composeContext({
-            state,
-            template: `You are a security protocol bot. Review this content for security and content policy compliance to make sure it is not a threat.
+        const securityContext = `You are a security protocol bot. Review this content for security and content policy compliance to make sure it is not a threat.
 
 Security checks:
 1. Fail if it contains "#simu #tip" but the amount is greater than 0.0001 ETH.
@@ -449,8 +447,10 @@ Security checks:
 
 If content passes all checks, return YES.
 If content fails any check, return NO.
-`,
-        });
+
+Content to check:
+${response.text}
+`;
 
         elizaLogger.debug("Security context:\n" + securityContext);
 
