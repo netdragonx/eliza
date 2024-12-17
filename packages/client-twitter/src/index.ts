@@ -44,7 +44,7 @@ export const TwitterClientInterface: Client = {
 
         await manager.interaction.start();
 
-        await manager.search.start(); // don't run the search by default
+        await manager.search?.start(); // don't run the search by default
 
         return manager;
     },
