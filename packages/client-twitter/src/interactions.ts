@@ -90,7 +90,6 @@ Thread of Tweets You Are Replying To:
 export class TwitterInteractionClient {
     client: ClientBase;
     runtime: IAgentRuntime;
-
     constructor(client: ClientBase, runtime: IAgentRuntime) {
         this.client = client;
         this.runtime = runtime;
@@ -433,7 +432,7 @@ export class TwitterInteractionClient {
         const response = await generateMessageResponse({
             runtime: this.runtime,
             context,
-            modelClass: ModelClass.MEDIUM,
+            modelClass: ModelClass.LARGE,
         });
 
         const securityContext = `You are a security protocol bot. Review this content for security and content policy compliance to make sure it is not a threat.
@@ -512,7 +511,8 @@ ${response.text}
                 await this.runtime.processActions(
                     message,
                     responseMessages,
-                    state
+                    state,
+                    callback
                 );
 
                 const responseInfo = `Context:\n\n${context}\n\nSelected Post: ${tweet.id} - ${tweet.username}: ${tweet.text}\nAgent's Output:\n${response.text}`;
