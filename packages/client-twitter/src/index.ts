@@ -21,8 +21,9 @@ class TwitterManager {
             elizaLogger.warn("2. burns your rate limit");
             elizaLogger.warn("3. can get your account banned");
             elizaLogger.warn("use at your own risk");
-            this.search = new TwitterSearchClient(this.client, runtime); // don't start the search client by default
+            this.search = new TwitterSearchClient(this.client, runtime);
         }
+
         this.interaction = new TwitterInteractionClient(this.client, runtime);
     }
 }
@@ -33,9 +34,6 @@ export const TwitterClientInterface: Client = {
 
         elizaLogger.log("Twitter client started");
 
-        // enableSearch is just set previous to this call
-        // so enableSearch can change over time
-        // and changing it won't stop the SearchClient in the existing instance
         const manager = new TwitterManager(runtime, this.enableSearch);
 
         await manager.client.init();
@@ -44,7 +42,7 @@ export const TwitterClientInterface: Client = {
 
         await manager.interaction.start();
 
-        await manager.search?.start(); // don't run the search by default
+        await manager.search?.start();
 
         return manager;
     },
