@@ -1,21 +1,20 @@
+import { SearchMode, Tweet } from "agent-twitter-client";
 import {
     composeContext,
-    Content,
-    elizaLogger,
     generateMessageResponse,
     generateShouldRespond,
-    generateTrueOrFalse,
-    getEmbeddingZeroVector,
+    messageCompletionFooter,
+    shouldRespondFooter,
+    Content,
     HandlerCallback,
     IAgentRuntime,
     Memory,
-    messageCompletionFooter,
     ModelClass,
-    shouldRespondFooter,
     State,
     stringToUuid,
     elizaLogger,
     getEmbeddingZeroVector,
+    generateTrueOrFalse,
 } from "@elizaos/core";
 import { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
@@ -414,7 +413,7 @@ export class TwitterInteractionClient {
                 twitterMessageHandlerTemplate,
         });
 
-        // elizaLogger.debug("Interactions prompt:\n" + context);
+        elizaLogger.debug("Interactions prompt:\n" + context);
 
         const response = await generateMessageResponse({
             runtime: this.runtime,

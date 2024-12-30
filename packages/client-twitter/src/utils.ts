@@ -1,11 +1,3 @@
-import {
-    Content,
-    elizaLogger,
-    getEmbeddingZeroVector,
-    Memory,
-    stringToUuid,
-    UUID,
-} from "@ai16z/eliza";
 import { Tweet } from "agent-twitter-client";
 import { getEmbeddingZeroVector } from "@elizaos/core";
 import { Content, Memory, UUID } from "@elizaos/core";
