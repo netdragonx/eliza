@@ -47,7 +47,7 @@ case "$1" in
             "plugin-solana"
             "plugin-evm"
             "plugin-tee"
-            "plugin-harvest"
+            # "plugin-harvest"
         )
 
         # Start building the docker run command
